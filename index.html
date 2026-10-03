@@ -1,0 +1,125 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><title>王牌接龙</title>
+<style>
+:root{--bg:#1d5a3a;--pn:#0003;--fg:#fff;--w:clamp(44px,min(8vw,calc((100vh - 120px)/6.6)),170px);--h:calc(var(--w)*1.42);--o:calc(var(--h)*.27);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);--mh:3.6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#123c27}}
+:root[data-theme="dark"]{--bg:#123c27}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,sans-serif;user-select:none;min-height:100vh;overflow-x:auto}
+#bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:8px 16px;font-size:calc(10px + .35vw)}
+#inf,#inf *,input[type=text]{user-select:text;-webkit-user-select:text}#inf{cursor:text}
+button,input[type=text]{font:inherit;padding:4px 10px;border-radius:6px;border:1px solid #fff6;background:#0004;color:#fff}
+button:disabled{opacity:.4}
+#top{display:flex;justify-content:space-between;padding:4px calc(var(--w)*.12);gap:12px}
+.area{display:flex;gap:calc(var(--w)*.12);padding:6px;border-radius:8px;background:var(--pn)}
+.box{position:relative;width:var(--w);height:var(--h);border:2px dashed #fff5;border-radius:6px;box-sizing:border-box;display:grid;place-items:center;color:#fff7;font-size:calc(var(--w)*.28)}
+.blocked .box{opacity:.4}
+#bd{display:grid;grid-template-columns:repeat(11,var(--w));gap:calc(var(--w)*.1);justify-content:center;margin-top:calc(var(--w)*.15)}
+.col{position:relative;border-radius:6px}.col.emp{border:2px dashed #fff4;box-sizing:border-box}
+.card{position:absolute;left:0;width:var(--w);height:var(--h);border-radius:6px;background:#fffdf5;border:1px solid #888;box-sizing:border-box;font-size:calc(var(--w)*.25);font-weight:700;padding:2px 4px;cursor:grab;touch-action:none;box-shadow:0 1px 2px #0006}
+.box .card{left:-2px;top:-2px}
+.card i{position:absolute;left:0;right:0;top:50%;text-align:center;font-style:normal;font-size:calc(var(--w)*.5);transform:translateY(-35%)}
+.r{color:#c4161c}.b{color:#111}.t{background:linear-gradient(#2a1b5e,#4b2a8a);color:#ffd45a;border-color:#ffd45a}
+.card.sel{outline:3px solid #ff0;transform:translateY(-4px)}
+.card.ok,.col.ok,.box.ok,.area.ok{outline:3px solid #4f4;outline-offset:1px}
+.card.friend{outline:3px solid #f5f;outline-offset:1px}
+#win{display:none;position:fixed;inset:0;background:#000a;place-items:center;font-size:28px;z-index:50;text-align:center}
+#hist{padding:8px 12px;font-size:13px}#hist span{margin-right:12px;display:inline-block}
+body{-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+@media (max-height:520px){
+:root{--w:calc((100vw - 14px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))/12.1);--o:calc(var(--h)*.23);--mh:2.4}
+#bar{padding:3px 8px;gap:4px 8px;font-size:11px}#bar button,#bar input[type=text]{padding:2px 6px;font-size:11px}#bar input[type=text]{width:60px}
+#bar>span:last-child{display:none}
+#top{padding:2px 4px}.area{padding:3px}#bd{margin-top:6px;margin-bottom:12px}
+}
+#hv{display:none;position:fixed;inset:0;background:var(--bg);z-index:60;overflow:auto;box-sizing:border-box;padding:env(safe-area-inset-top,0px) calc(12px + env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) calc(12px + env(safe-area-inset-left,0px))}
+#hv h2{margin:10px 0;display:flex;gap:10px;align-items:center}#hv h2 span{flex:1}
+#hv table{width:100%;max-width:900px;margin:0 auto;border-collapse:collapse}#hv th,#hv td{padding:6px 8px;text-align:left;border-bottom:1px solid #fff3;white-space:nowrap}
+#hv tr.cur{background:#ffffff1a}#hv td:nth-child(3){user-select:text;-webkit-user-select:text}
+</style></head><body>
+<div id="bar"><button id="un">↶ 撤销</button><button id="hb">历史</button><button id="rs">重开本局</button><input type="text" id="sd" size="8" placeholder="种子(可空)"><button id="ng">新局</button><label><input type="checkbox" id="fr" checked> 高亮朋友</label><label><input type="checkbox" id="au" checked> 自动回归</label><label title="放空列时保持顺序（需另有空列）"><input type="checkbox" id="kp"> 保序</label><span id="inf"></span><span style="opacity:.7">多张牌：拖/点连续段；放空列时按住 Shift 或勾选“保序”可保持顺序（需另有空列）</span></div>
+<div id="top"></div><div id="bd"></div>
+<div id="hv"><h2><span>历史记录</span><button id="hc">清空</button><button id="hx">✕ 关闭</button></h2><div style="overflow-x:auto"><table id="ht"></table></div></div>
+<div id="win"><div>🎉 通关！<br><small id="wm"></small><br><button onclick="ng()">新局</button></div></div>
+<script>
+const SY=['♠','♥','♦','♣','♛'],RL=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'],K='wangpai-v1';
+const su=i=>i<52?i/13|0:4,rk=i=>i<52?i%13+1:i-52,adj=(a,b)=>su(a)==su(b)&&Math.abs(rk(a)-rk(b))==1;
+let gid,seed,S,undo=[],hist=[],sel=null,dr=null;
+const $=id=>document.getElementById(id),bd=$('bd');
+function rng(s){let h=1779033703^s.length;for(const c of s){h=Math.imul(h^c.charCodeAt(0),3432918353);h=h<<13|h>>>19}let a=h>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function deal(sd){const r=rng(sd),a=[];for(let i=0;i<74;i++)if(i%13||i>51)a.push(i);
+ for(let i=a.length-1;i>0;i--){const j=r()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}
+ if(S&&S.moves==0)hist=hist.filter(h=>h.id!=gid);let p=0;seed=sd;gid=Date.now()+'-'+Math.random().toString(36).slice(2,6);undo=[];sel=null;
+ S={cols:Array.from({length:11},(_,i)=>i==5?[]:a.slice(p,p+=7)),found:[1,1,1,1],tlo:-1,thi:22,slot:null,moves:0,won:false};auto()}
+function ng(sd){
+ deal(typeof sd=='string'&&sd?sd:Math.random().toString(36).slice(2,8));save();R()}
+const ret=S=>S.found.reduce((a,b)=>a+b-1,0)+S.tlo+1+22-S.thi;
+function save(){const i=hist.findIndex(h=>h.id==gid);
+ {const r={id:gid,seed,moves:S.moves,ret:ret(S),won:S.won?1:0,ts:Date.now()};if(i>=0)hist[i]=r;else hist.unshift(r);hist=hist.slice(0,300)}
+ try{localStorage.setItem(K,JSON.stringify({gid,seed,S,undo,hist}));stOK=1}catch(e){stOK=0}}
+let stOK=1;
+const esc=x=>String(x).replace(/[<>&"']/g,c=>'&#'+c.charCodeAt(0)+';');
+function showH(){const rows=[...hist].sort((a,b)=>b.ts-a.ts).map(h=>`<tr class="${h.id==gid?'cur':''}"><td>${h.won?'✅ 通关':h.id==gid?'▶ 当前':h.moves?'⏸ 未完成':'· 未开始'}</td><td>${h.ts?new Date(h.ts).toLocaleString([],{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'-'}</td><td>${esc(h.seed)}</td><td>${h.ret==null?'-':h.ret+' / 70'}</td><td>${h.moves} 步</td><td>${h.id==gid?'':`<button data-seed="${encodeURIComponent(h.seed)}">重玩</button>`}</td></tr>`).join('');
+ $('ht').innerHTML='<tr><th>状态</th><th>时间</th><th>种子</th><th>回归</th><th>步数</th><th></th></tr>'+(rows||'<tr><td colspan=6>暂无记录</td></tr>');document.getElementById('hw')?.remove();$('ht').insertAdjacentHTML('beforebegin',stOK?'':'<p id=hw style="color:#fd8">⚠ 浏览器禁止了本地存储，刷新页面后历史和进度会丢失。</p>');$('hv').style.display='block'}
+$('hb').onclick=showH;$('hx').onclick=()=>$('hv').style.display='none';
+$('ht').onclick=e=>{const b=e.target.closest('[data-seed]');if(b){$('hv').style.display='none';ng(decodeURIComponent(b.dataset.seed))}};
+let hct;$('hc').onclick=()=>{const b=$('hc');if(!hct){b.textContent='再点确认';hct=setTimeout(()=>{hct=0;b.textContent='清空'},3000);return}clearTimeout(hct);hct=0;b.textContent='清空';hist=hist.filter(h=>h.id==gid);save();showH()};
+function cf(id){if(id<52){if(S.slot!=null&&S.slot!=id)return false;return rk(id)==S.found[su(id)]+1}const n=rk(id);return n==S.tlo+1||n==S.thi-1}
+function can(d,id,f){if(d=='slot')return S.slot==null&&f!='slot';if(d=='f')return id<52&&cf(id);if(d=='t')return id>=52&&cf(id);
+ if(d==f)return false;const k=S.cols[+d.slice(1)];return !k.length||adj(k[k.length-1],id)}
+function getSeg(s){if(s=='slot')return S.slot==null?[]:[S.slot];const[a,b]=s.slice(1).split('.'),c=S.cols[+a];return b==null?c.slice(-1):c.slice(+b)}
+const cur=s=>getSeg(s)[0];
+function mode(d,seg,keep){const n=seg.length,D=+d.slice(1),k=S.cols[D],ex=S.cols.some((c,i)=>!c.length&&i!=D);
+ if(!k.length)return keep&&ex?'keep':'rev';const t=k[k.length-1];
+ if(adj(t,seg[n-1]))return 'rev';return adj(t,seg[0])&&ex?'keep':null}
+function canS(d,seg,f){d=d.split('.')[0];f=f.split('.')[0];const n=seg.length;if(n==1)return can(d,seg[0],f);
+ return d[0]=='c'&&d!=f&&mode(d,seg,0)!=null}
+function apply(src,d,au,keep){const seg=getSeg(src),id=seg[0];
+ if(src=='slot')S.slot=null;else{const[a,b]=src.slice(1).split('.'),c=S.cols[+a];c.splice(b==null?c.length-1:+b)}
+ if(d=='slot')S.slot=id;else if(d=='f')S.found[su(id)]++;
+ else if(d=='t'){if(rk(id)==S.tlo+1)S.tlo=rk(id);else S.thi=rk(id)}
+ else{const D=S.cols[+d.slice(1)];if(seg.length>1&&mode(d,seg,keep)=='rev')seg.reverse();D.push(...seg)}
+ if(!au)S.moves++}
+function auto(){if(!$('au').checked)return;let ch=true;
+ while(ch){ch=false;for(const src of ['slot',...S.cols.map((_,i)=>'c'+i)]){const id=cur(src);
+  if(id!=null){const d=id<52?'f':'t';if(can(d,id,src)){apply(src,d,1);ch=true}}}}
+ if(!S.won&&S.found.every(x=>x==13)&&S.tlo+1+22-S.thi==22){S.won=true}}
+function mv(src,d,keep){d=d.split('.')[0];const seg=getSeg(src);if(!seg.length||!canS(d,seg,src))return false;undo.push(JSON.stringify(S));
+ apply(src,d,0,keep);sel=null;auto();save();R();return true}
+function ce(id,a){const s=su(id),t=s==4;return `<div class="card ${t?'t':s%3?'r':'b'}" data-id="${id}" ${a||''}><span>${t?rk(id):RL[rk(id)]+SY[s]}</span><i>${SY[s]}</i></div>`}
+function R(){
+ const fb=S.found.map((n,s)=>`<div class=box>${SY[s]}${ce(s*13+n-1)}</div>`).join('');
+ $('top').innerHTML=`<div class=area data-dest=t><div class=box>0${S.tlo>=0?ce(52+S.tlo):''}</div><div class=box>21${S.thi<22?ce(52+S.thi):''}</div></div>
+ <div style="display:flex;gap:14px"><div class=box data-dest=slot>暂存${S.slot!=null?ce(S.slot,'data-src=slot'):''}</div><div class="area ${S.slot!=null?'blocked':''}" data-dest=f>${fb}</div></div>`;
+ bd.innerHTML=S.cols.map((c,i)=>`<div class="col ${c.length?'':'emp'}" data-dest=c${i} style="height:max(calc(var(--h)*var(--mh)),calc(var(--h) + var(--o)*${Math.max(c.length-1,0)}))">${(()=>{let q=c.length-1;while(q>0&&adj(c[q-1],c[q]))q--;return c.map((id,k)=>ce(id,(k<q?'':k==c.length-1?`data-src="c${i}" `:`data-src="c${i}.${k}" `)+`style="top:calc(var(--o)*${k})"`)).join('')})()}</div>`).join('');
+ $('un').disabled=!undo.length;$('inf').innerHTML=`种子 <b>${seed.replace(/[<>&"]/g,'')}</b> · 步数 ${S.moves}`;
+ 
+ $('win').style.display=S.won?'grid':'none';$('wm').textContent=`用了 ${S.moves} 步`;dec()}
+function dec(){document.querySelectorAll('.ok,.sel').forEach(e=>e.classList.remove('ok','sel'));
+ if(sel!=null){const seg=getSeg(sel);seg.forEach(id=>document.querySelector(`[data-id="${id}"]`)?.classList.add('sel'));
+  document.querySelectorAll('[data-dest]').forEach(e=>{const d=e.dataset.dest;if(canS(d,seg,sel)){(d[0]=='c'&&e.lastElementChild?e.lastElementChild:e).classList.add('ok')}})}
+ friends(sel!=null?cur(sel):null)}
+function friends(id){document.querySelectorAll('.friend').forEach(e=>e.classList.remove('friend'));
+ if(id!=null&&$('fr').checked)document.querySelectorAll('[data-id]').forEach(e=>{if(adj(id,+e.dataset.id))e.classList.add('friend')})}
+bd.addEventListener('pointerdown',e=>{const el=e.target.closest('[data-src]');if(!el||e.button)return;try{el.releasePointerCapture(e.pointerId)}catch(x){}dr={src:el.dataset.src,x:e.clientX,y:e.clientY,on:false}});
+$('top').addEventListener('pointerdown',e=>{const el=e.target.closest('[data-src]');if(!el||e.button)return;try{el.releasePointerCapture(e.pointerId)}catch(x){}dr={src:'slot',x:e.clientX,y:e.clientY,on:false}});
+addEventListener('pointermove',e=>{if(!dr)return;
+ if(!dr.on&&Math.hypot(e.clientX-dr.x,e.clientY-dr.y)>6){dr.on=true;sel=dr.src;dec();const seg=getSeg(sel),o=document.querySelector(`[data-id="${seg[0]}"]`),r=o.getBoundingClientRect();
+  dr.ox=dr.x-r.left;dr.oy=dr.y-r.top;const g=dr.g=document.createElement('div');g.style.cssText='position:fixed;left:0;top:0;width:var(--w);z-index:99;pointer-events:none;opacity:.92';
+  seg.forEach((id,i)=>{const e=document.querySelector(`[data-id="${id}"]`),c=e.cloneNode(true);c.style.top=`calc(var(--o)*${i})`;c.classList.remove('sel');g.appendChild(c);e.style.opacity=.3});document.body.appendChild(g)}
+ if(dr.on)dr.g.style.transform=`translate(${e.clientX-dr.ox}px,${e.clientY-dr.oy}px)`});
+addEventListener('pointerup',e=>{if(!dr)return;const d=dr;dr=null;
+ if(d.on){d.g.remove();const t=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-dest]');sel=null;if(!(t&&mv(d.src,t.dataset.dest,(e.shiftKey||$('kp').checked))))R();return}
+ if(sel!=null&&sel!=d.src&&mv(sel,d.src,(e.shiftKey||$('kp').checked)))return;sel=sel==d.src?null:d.src;dec()});
+addEventListener('pointercancel',()=>{if(dr){dr.g&&dr.g.remove();dr=null;sel=null;R()}});
+document.addEventListener('click',e=>{if(e.target.closest('[data-src]')||e.target.closest('#bar,#hv,#win'))return;
+ if(sel==null)return;const t=e.target.closest('[data-dest]');if(!(t&&mv(sel,t.dataset.dest,(e.shiftKey||$('kp').checked)))){sel=null;dec()}});
+document.addEventListener('dblclick',e=>{const el=e.target.closest('[data-src]');if(el){const s=el.dataset.src;mv(s,'f')||mv(s,'t')}});
+document.addEventListener('mouseover',e=>{if(dr)return;const el=e.target.closest&&e.target.closest('[data-id]');friends(el?+el.dataset.id:sel!=null?cur(sel):null)});
+$('fr').onchange=dec;$('au').onchange=()=>{if(!S.won){undo.push(JSON.stringify(S));auto();save();R()}};
+function un(){if(!undo.length)return;S=JSON.parse(undo.pop());sel=null;save();R()}
+$('un').onclick=un;let rt;$('rs').onclick=()=>{const b=$('rs');if(S.moves>0&&!rt){b.textContent='再点一次确认';rt=setTimeout(()=>{rt=0;b.textContent='重开本局'},3000);return}clearTimeout(rt);rt=0;b.textContent='重开本局';deal(seed);save();R()};
+$('ng').onclick=()=>{const v=$('sd').value.trim();$('sd').value='';ng(v)};
+addEventListener('keydown',e=>{if(e.key=='z'&&(e.ctrlKey||e.metaKey)||e.key=='Backspace'&&document.activeElement.tagName!='INPUT')un()});
+try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.S){seed=d.seed;S=d.S;undo=d.undo||[];hist=(d.hist||[]).map((h,i)=>({id:'o'+i,ts:0,...h}));gid=d.gid||Date.now()+'-x'}}catch(e){}
+if(!S)ng();else R();
+</script></body></html>
