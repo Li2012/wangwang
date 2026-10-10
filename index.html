@@ -493,11 +493,27 @@ function refreshHighlights() {
   highlightFriends(selected != null ? cardsAt(selected)[0] : null);
 }
 
+/** 牌所在列内最大连续同花色串的两端（单张则两端为自身） */
+function runEnds(card) {
+  for (const column of state.columns) {
+    const idx = column.indexOf(card);
+    if (idx < 0) continue;
+    let lo = idx, hi = idx;
+    while (lo > 0 && areNeighbors(column[lo - 1], column[lo])) lo--;
+    while (hi < column.length - 1 && areNeighbors(column[hi], column[hi + 1])) hi++;
+    return { bottom: column[lo], top: column[hi], run: new Set(column.slice(lo, hi + 1)) };
+  }
+  return { bottom: card, top: card, run: new Set([card]) };
+}
+
 function highlightFriends(card) {
   document.querySelectorAll('.friend').forEach(el => el.classList.remove('friend'));
   if (card == null || !$('friendsToggle').checked) return;
+  const { bottom, top, run } = runEnds(card);
   document.querySelectorAll('[data-id]').forEach(el => {
-    if (areNeighbors(card, +el.dataset.id)) el.classList.add('friend');
+    const other = +el.dataset.id;
+    if (run.has(other)) return;
+    if (areNeighbors(other, bottom) || areNeighbors(other, top)) el.classList.add('friend');
   });
 }
 
