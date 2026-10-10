@@ -1,125 +1,653 @@
-<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><title>王牌接龙</title>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>王牌接龙</title>
 <style>
-:root{--bg:#1d5a3a;--pn:#0003;--fg:#fff;--w:clamp(44px,min(8vw,calc((100vh - 120px)/6.6)),170px);--h:calc(var(--w)*1.42);--o:calc(var(--h)*.27);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);--mh:3.6}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#123c27}}
-:root[data-theme="dark"]{--bg:#123c27}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,sans-serif;user-select:none;min-height:100vh;overflow-x:auto}
-#bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:8px 16px;font-size:calc(10px + .35vw)}
-#inf,#inf *,input[type=text]{user-select:text;-webkit-user-select:text}#inf{cursor:text}
-button,input[type=text]{font:inherit;padding:4px 10px;border-radius:6px;border:1px solid #fff6;background:#0004;color:#fff}
-button:disabled{opacity:.4}
-#top{display:flex;justify-content:space-between;padding:4px calc(var(--w)*.12);gap:12px}
-.area{display:flex;gap:calc(var(--w)*.12);padding:6px;border-radius:8px;background:var(--pn)}
-.box{position:relative;width:var(--w);height:var(--h);border:2px dashed #fff5;border-radius:6px;box-sizing:border-box;display:grid;place-items:center;color:#fff7;font-size:calc(var(--w)*.28)}
-.blocked .box{opacity:.4}
-#bd{display:grid;grid-template-columns:repeat(11,var(--w));gap:calc(var(--w)*.1);justify-content:center;margin-top:calc(var(--w)*.15)}
-.col{position:relative;border-radius:6px}.col.emp{border:2px dashed #fff4;box-sizing:border-box}
-.card{position:absolute;left:0;width:var(--w);height:var(--h);border-radius:6px;background:#fffdf5;border:1px solid #888;box-sizing:border-box;font-size:calc(var(--w)*.25);font-weight:700;padding:2px 4px;cursor:grab;touch-action:none;box-shadow:0 1px 2px #0006}
-.box .card{left:-2px;top:-2px}
-.card i{position:absolute;left:0;right:0;top:50%;text-align:center;font-style:normal;font-size:calc(var(--w)*.5);transform:translateY(-35%)}
-.r{color:#c4161c}.b{color:#111}.t{background:linear-gradient(#2a1b5e,#4b2a8a);color:#ffd45a;border-color:#ffd45a}
-.card.sel{outline:3px solid #ff0;transform:translateY(-4px)}
-.card.ok,.col.ok,.box.ok,.area.ok{outline:3px solid #4f4;outline-offset:1px}
-.card.friend{outline:3px solid #f5f;outline-offset:1px}
-#win{display:none;position:fixed;inset:0;background:#000a;place-items:center;font-size:28px;z-index:50;text-align:center}
-#hist{padding:8px 12px;font-size:13px}#hist span{margin-right:12px;display:inline-block}
-body{-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-@media (max-height:520px){
-:root{--w:calc((100vw - 14px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))/12.1);--o:calc(var(--h)*.23);--mh:2.4}
-#bar{padding:3px 8px;gap:4px 8px;font-size:11px}#bar button,#bar input[type=text]{padding:2px 6px;font-size:11px}#bar input[type=text]{width:60px}
-#bar>span:last-child{display:none}
-#top{padding:2px 4px}.area{padding:3px}#bd{margin-top:6px;margin-bottom:12px}
-}
-#hv{display:none;position:fixed;inset:0;background:var(--bg);z-index:60;overflow:auto;box-sizing:border-box;padding:env(safe-area-inset-top,0px) calc(12px + env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) calc(12px + env(safe-area-inset-left,0px))}
-#hv h2{margin:10px 0;display:flex;gap:10px;align-items:center}#hv h2 span{flex:1}
-#hv table{width:100%;max-width:900px;margin:0 auto;border-collapse:collapse}#hv th,#hv td{padding:6px 8px;text-align:left;border-bottom:1px solid #fff3;white-space:nowrap}
-#hv tr.cur{background:#ffffff1a}#hv td:nth-child(3){user-select:text;-webkit-user-select:text}
-</style></head><body>
-<div id="bar"><button id="un">↶ 撤销</button><button id="hb">历史</button><button id="rs">重开本局</button><input type="text" id="sd" size="8" placeholder="种子(可空)"><button id="ng">新局</button><label><input type="checkbox" id="fr" checked> 高亮朋友</label><label><input type="checkbox" id="au" checked> 自动回归</label><label title="放空列时保持顺序（需另有空列）"><input type="checkbox" id="kp"> 保序</label><span id="inf"></span><span style="opacity:.7">多张牌：拖/点连续段；放空列时按住 Shift 或勾选“保序”可保持顺序（需另有空列）</span></div>
-<div id="top"></div><div id="bd"></div>
-<div id="hv"><h2><span>历史记录</span><button id="hc">清空</button><button id="hx">✕ 关闭</button></h2><div style="overflow-x:auto"><table id="ht"></table></div></div>
-<div id="win"><div>🎉 通关！<br><small id="wm"></small><br><button onclick="ng()">新局</button></div></div>
+  /* ---------- 尺寸变量：--w 牌宽，--h 牌高，--o 同列相邻牌的错位 ---------- */
+  :root {
+    --bg: #1d5a3a;
+    --panel: #0003;
+    --w: clamp(44px, min(8vw, calc((100vh - 120px) / 6.6)), 170px);
+    --h: calc(var(--w) * 1.42);
+    --o: calc(var(--h) * .27);
+    --column-min-height: 3.6;   /* 列的最小高度（单位：牌高） */
+    box-sizing: border-box;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+             env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #123c27; } }
+  :root[data-theme="dark"] { --bg: #123c27; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+  body {
+    margin: 0; min-height: 100vh; overflow-x: auto;
+    background: var(--bg); color: #fff; font: 14px system-ui, sans-serif;
+    user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  }
+  button, input[type=text] {
+    font: inherit; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid #fff6; background: #0004; color: #fff;
+  }
+  button:disabled { opacity: .4; }
+  #info, #info *, input[type=text] { user-select: text; -webkit-user-select: text; }
+  #info { cursor: text; }
+
+  /* ---------- 工具栏 ---------- */
+  #toolbar {
+    display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;
+    padding: 8px 16px; font-size: calc(10px + .35vw);
+  }
+
+  /* ---------- 上方：王牌目的地 / 暂存格 / 花色目的地 ---------- */
+  #topArea { display: flex; justify-content: space-between; padding: 4px calc(var(--w) * .12); gap: 12px; }
+  .area { display: flex; gap: calc(var(--w) * .12); padding: 6px; border-radius: 8px; background: var(--panel); }
+  .box {
+    position: relative; box-sizing: border-box; width: var(--w); height: var(--h);
+    border: 2px dashed #fff5; border-radius: 6px; display: grid; place-items: center;
+    color: #fff7; font-size: calc(var(--w) * .28);
+  }
+  .area.blocked .box { opacity: .4; }          /* 暂存格有牌时，花色目的地被阻挡 */
+
+  /* ---------- 下方：11 列牌 ---------- */
+  #board {
+    display: grid; grid-template-columns: repeat(11, var(--w)); justify-content: center;
+    gap: calc(var(--w) * .1); margin-top: calc(var(--w) * .15);
+  }
+  .column { position: relative; border-radius: 6px; }
+  .column.empty { border: 2px dashed #fff4; box-sizing: border-box; }
+
+  /* ---------- 牌 ---------- */
+  .card {
+    position: absolute; left: 0; box-sizing: border-box; width: var(--w); height: var(--h);
+    padding: 2px 4px; border-radius: 6px; border: 1px solid #888; background: #fffdf5;
+    font-size: calc(var(--w) * .25); font-weight: 700; cursor: grab; touch-action: none;
+    box-shadow: 0 1px 2px #0006;
+  }
+  .box .card { left: -2px; top: -2px; }
+  .card i {
+    position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-style: normal;
+    font-size: calc(var(--w) * .5); transform: translateY(-35%);
+  }
+  .card.red   { color: #c4161c; }
+  .card.black { color: #111; }
+  .card.trump { background: linear-gradient(#2a1b5e, #4b2a8a); color: #ffd45a; border-color: #ffd45a; }
+
+  .card.selected { outline: 3px solid #ff0; transform: translateY(-4px); }
+  .card.target, .column.target, .box.target, .area.target { outline: 3px solid #4f4; outline-offset: 1px; }
+  .card.friend { outline: 3px solid #f5f; outline-offset: 1px; }
+
+  /* ---------- 通关提示 / 历史记录（全屏） ---------- */
+  #winOverlay {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: #000a; place-items: center; text-align: center; font-size: 28px;
+  }
+  #historyView {
+    display: none; position: fixed; inset: 0; z-index: 60; overflow: auto; box-sizing: border-box;
+    background: var(--bg);
+    padding: env(safe-area-inset-top, 0px) calc(12px + env(safe-area-inset-right, 0px))
+             env(safe-area-inset-bottom, 0px) calc(12px + env(safe-area-inset-left, 0px));
+  }
+  #historyView h2 { margin: 10px 0; display: flex; gap: 10px; align-items: center; }
+  #historyView h2 span { flex: 1; }
+  #historyTable { width: 100%; max-width: 900px; margin: 0 auto; border-collapse: collapse; }
+  #historyTable th, #historyTable td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #fff3; white-space: nowrap; }
+  #historyTable tr.current { background: #ffffff1a; }
+  #historyTable td:nth-child(3) { user-select: text; -webkit-user-select: text; }
+
+  /* ---------- 手机横屏：牌宽按屏幕宽度算，工具栏压缩 ---------- */
+  @media (max-height: 520px) {
+    :root {
+      --w: calc((100vw - 14px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 12.1);
+      --o: calc(var(--h) * .23);
+      --column-min-height: 2.4;
+    }
+    #toolbar { padding: 3px 8px; gap: 4px 8px; font-size: 11px; }
+    #toolbar button, #toolbar input[type=text] { padding: 2px 6px; font-size: 11px; }
+    #toolbar input[type=text] { width: 60px; }
+    #toolbar > span:last-child { display: none; }
+    #topArea { padding: 2px 4px; }
+    .area { padding: 3px; }
+    #board { margin-top: 6px; margin-bottom: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <button id="undoBtn">↶ 撤销</button>
+  <button id="historyBtn">历史</button>
+  <button id="restartBtn">重开本局</button>
+  <input type="text" id="seedInput" size="8" placeholder="种子(可空)">
+  <button id="newGameBtn">新局</button>
+  <label><input type="checkbox" id="friendsToggle" checked> 高亮朋友</label>
+  <label><input type="checkbox" id="autoToggle" checked> 自动回归</label>
+  <label title="放空列时保持顺序（需另有空列）"><input type="checkbox" id="keepOrderToggle"> 保序</label>
+  <span id="info"></span>
+  <span style="opacity:.7">多张牌：拖/点连续段；放空列时按住 Shift 或勾选“保序”可保持顺序（需另有空列）</span>
+</div>
+
+<div id="topArea"></div>
+<div id="board"></div>
+
+<div id="historyView">
+  <h2><span>历史记录</span><button id="clearHistoryBtn">清空</button><button id="closeHistoryBtn">✕ 关闭</button></h2>
+  <div style="overflow-x:auto"><table id="historyTable"></table></div>
+</div>
+
+<div id="winOverlay">
+  <div>🎉 通关！<br><small id="winMessage"></small><br><button onclick="startNewGame()">新局</button></div>
+</div>
+
 <script>
-const SY=['♠','♥','♦','♣','♛'],RL=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'],K='wangpai-v1';
-const su=i=>i<52?i/13|0:4,rk=i=>i<52?i%13+1:i-52,adj=(a,b)=>su(a)==su(b)&&Math.abs(rk(a)-rk(b))==1;
-let gid,seed,S,undo=[],hist=[],sel=null,dr=null;
-const $=id=>document.getElementById(id),bd=$('bd');
-function rng(s){let h=1779033703^s.length;for(const c of s){h=Math.imul(h^c.charCodeAt(0),3432918353);h=h<<13|h>>>19}let a=h>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function deal(sd){const r=rng(sd),a=[];for(let i=0;i<74;i++)if(i%13||i>51)a.push(i);
- for(let i=a.length-1;i>0;i--){const j=r()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}
- if(S&&S.moves==0)hist=hist.filter(h=>h.id!=gid);let p=0;seed=sd;gid=Date.now()+'-'+Math.random().toString(36).slice(2,6);undo=[];sel=null;
- S={cols:Array.from({length:11},(_,i)=>i==5?[]:a.slice(p,p+=7)),found:[1,1,1,1],tlo:-1,thi:22,slot:null,moves:0,won:false};auto()}
-function ng(sd){
- deal(typeof sd=='string'&&sd?sd:Math.random().toString(36).slice(2,8));save();R()}
-const ret=S=>S.found.reduce((a,b)=>a+b-1,0)+S.tlo+1+22-S.thi;
-function save(){const i=hist.findIndex(h=>h.id==gid);
- {const r={id:gid,seed,moves:S.moves,ret:ret(S),won:S.won?1:0,ts:Date.now()};if(i>=0)hist[i]=r;else hist.unshift(r);hist=hist.slice(0,300)}
- try{localStorage.setItem(K,JSON.stringify({gid,seed,S,undo,hist}));stOK=1}catch(e){stOK=0}}
-let stOK=1;
-const esc=x=>String(x).replace(/[<>&"']/g,c=>'&#'+c.charCodeAt(0)+';');
-function showH(){const rows=[...hist].sort((a,b)=>b.ts-a.ts).map(h=>`<tr class="${h.id==gid?'cur':''}"><td>${h.won?'✅ 通关':h.id==gid?'▶ 当前':h.moves?'⏸ 未完成':'· 未开始'}</td><td>${h.ts?new Date(h.ts).toLocaleString([],{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'-'}</td><td>${esc(h.seed)}</td><td>${h.ret==null?'-':h.ret+' / 70'}</td><td>${h.moves} 步</td><td>${h.id==gid?'':`<button data-seed="${encodeURIComponent(h.seed)}">重玩</button>`}</td></tr>`).join('');
- $('ht').innerHTML='<tr><th>状态</th><th>时间</th><th>种子</th><th>回归</th><th>步数</th><th></th></tr>'+(rows||'<tr><td colspan=6>暂无记录</td></tr>');document.getElementById('hw')?.remove();$('ht').insertAdjacentHTML('beforebegin',stOK?'':'<p id=hw style="color:#fd8">⚠ 浏览器禁止了本地存储，刷新页面后历史和进度会丢失。</p>');$('hv').style.display='block'}
-$('hb').onclick=showH;$('hx').onclick=()=>$('hv').style.display='none';
-$('ht').onclick=e=>{const b=e.target.closest('[data-seed]');if(b){$('hv').style.display='none';ng(decodeURIComponent(b.dataset.seed))}};
-let hct;$('hc').onclick=()=>{const b=$('hc');if(!hct){b.textContent='再点确认';hct=setTimeout(()=>{hct=0;b.textContent='清空'},3000);return}clearTimeout(hct);hct=0;b.textContent='清空';hist=hist.filter(h=>h.id==gid);save();showH()};
-function cf(id){if(id<52){if(S.slot!=null&&S.slot!=id)return false;return rk(id)==S.found[su(id)]+1}const n=rk(id);return n==S.tlo+1||n==S.thi-1}
-function can(d,id,f){if(d=='slot')return S.slot==null&&f!='slot';if(d=='f')return id<52&&cf(id);if(d=='t')return id>=52&&cf(id);
- if(d==f)return false;const k=S.cols[+d.slice(1)];return !k.length||adj(k[k.length-1],id)}
-function getSeg(s){if(s=='slot')return S.slot==null?[]:[S.slot];const[a,b]=s.slice(1).split('.'),c=S.cols[+a];return b==null?c.slice(-1):c.slice(+b)}
-const cur=s=>getSeg(s)[0];
-function mode(d,seg,keep){const n=seg.length,D=+d.slice(1),k=S.cols[D],ex=S.cols.some((c,i)=>!c.length&&i!=D);
- if(!k.length)return keep&&ex?'keep':'rev';const t=k[k.length-1];
- if(adj(t,seg[n-1]))return 'rev';return adj(t,seg[0])&&ex?'keep':null}
-function canS(d,seg,f){d=d.split('.')[0];f=f.split('.')[0];const n=seg.length;if(n==1)return can(d,seg[0],f);
- return d[0]=='c'&&d!=f&&mode(d,seg,0)!=null}
-function apply(src,d,au,keep){const seg=getSeg(src),id=seg[0];
- if(src=='slot')S.slot=null;else{const[a,b]=src.slice(1).split('.'),c=S.cols[+a];c.splice(b==null?c.length-1:+b)}
- if(d=='slot')S.slot=id;else if(d=='f')S.found[su(id)]++;
- else if(d=='t'){if(rk(id)==S.tlo+1)S.tlo=rk(id);else S.thi=rk(id)}
- else{const D=S.cols[+d.slice(1)];if(seg.length>1&&mode(d,seg,keep)=='rev')seg.reverse();D.push(...seg)}
- if(!au)S.moves++}
-function auto(){if(!$('au').checked)return;let ch=true;
- while(ch){ch=false;for(const src of ['slot',...S.cols.map((_,i)=>'c'+i)]){const id=cur(src);
-  if(id!=null){const d=id<52?'f':'t';if(can(d,id,src)){apply(src,d,1);ch=true}}}}
- if(!S.won&&S.found.every(x=>x==13)&&S.tlo+1+22-S.thi==22){S.won=true}}
-function mv(src,d,keep){d=d.split('.')[0];const seg=getSeg(src);if(!seg.length||!canS(d,seg,src))return false;undo.push(JSON.stringify(S));
- apply(src,d,0,keep);sel=null;auto();save();R();return true}
-function ce(id,a){const s=su(id),t=s==4;return `<div class="card ${t?'t':s%3?'r':'b'}" data-id="${id}" ${a||''}><span>${t?rk(id):RL[rk(id)]+SY[s]}</span><i>${SY[s]}</i></div>`}
-function R(){
- const fb=S.found.map((n,s)=>`<div class=box>${SY[s]}${ce(s*13+n-1)}</div>`).join('');
- $('top').innerHTML=`<div class=area data-dest=t><div class=box>0${S.tlo>=0?ce(52+S.tlo):''}</div><div class=box>21${S.thi<22?ce(52+S.thi):''}</div></div>
- <div style="display:flex;gap:14px"><div class=box data-dest=slot>暂存${S.slot!=null?ce(S.slot,'data-src=slot'):''}</div><div class="area ${S.slot!=null?'blocked':''}" data-dest=f>${fb}</div></div>`;
- bd.innerHTML=S.cols.map((c,i)=>`<div class="col ${c.length?'':'emp'}" data-dest=c${i} style="height:max(calc(var(--h)*var(--mh)),calc(var(--h) + var(--o)*${Math.max(c.length-1,0)}))">${(()=>{let q=c.length-1;while(q>0&&adj(c[q-1],c[q]))q--;return c.map((id,k)=>ce(id,(k<q?'':k==c.length-1?`data-src="c${i}" `:`data-src="c${i}.${k}" `)+`style="top:calc(var(--o)*${k})"`)).join('')})()}</div>`).join('');
- $('un').disabled=!undo.length;$('inf').innerHTML=`种子 <b>${seed.replace(/[<>&"]/g,'')}</b> · 步数 ${S.moves}`;
- 
- $('win').style.display=S.won?'grid':'none';$('wm').textContent=`用了 ${S.moves} 步`;dec()}
-function dec(){document.querySelectorAll('.ok,.sel').forEach(e=>e.classList.remove('ok','sel'));
- if(sel!=null){const seg=getSeg(sel);seg.forEach(id=>document.querySelector(`[data-id="${id}"]`)?.classList.add('sel'));
-  document.querySelectorAll('[data-dest]').forEach(e=>{const d=e.dataset.dest;if(canS(d,seg,sel)){(d[0]=='c'&&e.lastElementChild?e.lastElementChild:e).classList.add('ok')}})}
- friends(sel!=null?cur(sel):null)}
-function friends(id){document.querySelectorAll('.friend').forEach(e=>e.classList.remove('friend'));
- if(id!=null&&$('fr').checked)document.querySelectorAll('[data-id]').forEach(e=>{if(adj(id,+e.dataset.id))e.classList.add('friend')})}
-bd.addEventListener('pointerdown',e=>{const el=e.target.closest('[data-src]');if(!el||e.button)return;try{el.releasePointerCapture(e.pointerId)}catch(x){}dr={src:el.dataset.src,x:e.clientX,y:e.clientY,on:false}});
-$('top').addEventListener('pointerdown',e=>{const el=e.target.closest('[data-src]');if(!el||e.button)return;try{el.releasePointerCapture(e.pointerId)}catch(x){}dr={src:'slot',x:e.clientX,y:e.clientY,on:false}});
-addEventListener('pointermove',e=>{if(!dr)return;
- if(!dr.on&&Math.hypot(e.clientX-dr.x,e.clientY-dr.y)>6){dr.on=true;sel=dr.src;dec();const seg=getSeg(sel),o=document.querySelector(`[data-id="${seg[0]}"]`),r=o.getBoundingClientRect();
-  dr.ox=dr.x-r.left;dr.oy=dr.y-r.top;const g=dr.g=document.createElement('div');g.style.cssText='position:fixed;left:0;top:0;width:var(--w);z-index:99;pointer-events:none;opacity:.92';
-  seg.forEach((id,i)=>{const e=document.querySelector(`[data-id="${id}"]`),c=e.cloneNode(true);c.style.top=`calc(var(--o)*${i})`;c.classList.remove('sel');g.appendChild(c);e.style.opacity=.3});document.body.appendChild(g)}
- if(dr.on)dr.g.style.transform=`translate(${e.clientX-dr.ox}px,${e.clientY-dr.oy}px)`});
-addEventListener('pointerup',e=>{if(!dr)return;const d=dr;dr=null;
- if(d.on){d.g.remove();const t=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-dest]');sel=null;if(!(t&&mv(d.src,t.dataset.dest,(e.shiftKey||$('kp').checked))))R();return}
- if(sel!=null&&sel!=d.src&&mv(sel,d.src,(e.shiftKey||$('kp').checked)))return;sel=sel==d.src?null:d.src;dec()});
-addEventListener('pointercancel',()=>{if(dr){dr.g&&dr.g.remove();dr=null;sel=null;R()}});
-document.addEventListener('click',e=>{if(e.target.closest('[data-src]')||e.target.closest('#bar,#hv,#win'))return;
- if(sel==null)return;const t=e.target.closest('[data-dest]');if(!(t&&mv(sel,t.dataset.dest,(e.shiftKey||$('kp').checked)))){sel=null;dec()}});
-document.addEventListener('dblclick',e=>{const el=e.target.closest('[data-src]');if(el){const s=el.dataset.src;mv(s,'f')||mv(s,'t')}});
-document.addEventListener('mouseover',e=>{if(dr)return;const el=e.target.closest&&e.target.closest('[data-id]');friends(el?+el.dataset.id:sel!=null?cur(sel):null)});
-$('fr').onchange=dec;$('au').onchange=()=>{if(!S.won){undo.push(JSON.stringify(S));auto();save();R()}};
-function un(){if(!undo.length)return;S=JSON.parse(undo.pop());sel=null;save();R()}
-$('un').onclick=un;let rt;$('rs').onclick=()=>{const b=$('rs');if(S.moves>0&&!rt){b.textContent='再点一次确认';rt=setTimeout(()=>{rt=0;b.textContent='重开本局'},3000);return}clearTimeout(rt);rt=0;b.textContent='重开本局';deal(seed);save();R()};
-$('ng').onclick=()=>{const v=$('sd').value.trim();$('sd').value='';ng(v)};
-addEventListener('keydown',e=>{if(e.key=='z'&&(e.ctrlKey||e.metaKey)||e.key=='Backspace'&&document.activeElement.tagName!='INPUT')un()});
-try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.S){seed=d.seed;S=d.S;undo=d.undo||[];hist=(d.hist||[]).map((h,i)=>({id:'o'+i,ts:0,...h}));gid=d.gid||Date.now()+'-x'}}catch(e){}
-if(!S)ng();else R();
-</script></body></html>
+/* =====================================================================
+ * 牌的编码：整数 0..73
+ *   0..51  花色牌：花色 * 13 + (点数 - 1)；花色 0♠ 1♥ 2♦ 3♣，点数 1(A)..13(K)
+ *   52..73 王牌：数字 0..21
+ * 位置（移动的起点/终点）用字符串表示：
+ *   "col3"      第 3 列（0 起）；作为起点时指最上面一张牌
+ *   "col3.2"    第 3 列从第 2 张牌起的一整段（多张牌移动）
+ *   "park"      暂存格          "foundation" 花色目的地      "trump" 王牌目的地
+ * ===================================================================== */
+const SUIT_SYMBOLS = ['♠', '♥', '♦', '♣', '♛'];     // 最后一个是王牌用的
+const RANK_LABELS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const TRUMP_SUIT = 4;
+const FIRST_TRUMP = 52;
+const TRUMP_COUNT = 22;
+const COLUMN_COUNT = 11;
+const EMPTY_START_COLUMN = 5;      // 开局为空的列（正中间）
+const CARDS_PER_COLUMN = 7;
+const STORAGE_KEY = 'wangpai-v1';
+
+const isTrump = card => card >= FIRST_TRUMP;
+const suitOf = card => isTrump(card) ? TRUMP_SUIT : Math.floor(card / 13);
+const rankOf = card => isTrump(card) ? card - FIRST_TRUMP : card % 13 + 1;
+/** 两张牌是否“朋友”：同花色且点数相差 1（王牌同理） */
+const areNeighbors = (a, b) => suitOf(a) === suitOf(b) && Math.abs(rankOf(a) - rankOf(b)) === 1;
+
+/* =====================================================================
+ * 游戏状态
+ *   columns   每列的牌，数组末尾是最上面（可操作）的一张
+ *   suitTops  四个花色目的地当前最大的点数（开局 A 已在，所以是 1）
+ *   trumpLow  王牌目的地“低端”已放到的数字（-1 表示还没有）
+ *   trumpHigh 王牌目的地“高端”已放到的数字（22 表示还没有）
+ *   parked    暂存格里的牌（没有则为 null）
+ * ===================================================================== */
+let gameId;                // 本局的唯一编号（历史记录用）
+let seed;
+let state;
+let undoStack = [];        // 每一步之前的状态（JSON 字符串），不设上限
+let history = [];          // 历史记录
+let selected = null;       // 当前选中的起点位置
+let drag = null;           // 正在进行的拖拽/点击
+let storageWorks = true;
+
+const $ = id => document.getElementById(id);
+const boardEl = $('board');
+
+/* ---------- 种子随机数 ---------- */
+function createRandom(seedText) {
+  let h = 1779033703 ^ seedText.length;
+  for (const ch of seedText) {
+    h = Math.imul(h ^ ch.charCodeAt(0), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  let a = h >>> 0;                       // mulberry32
+  return () => {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- 开局 ---------- */
+function dealNewGame(seedText) {
+  // 没走过的旧局不进历史
+  if (state && state.moves === 0) history = history.filter(h => h.id !== gameId);
+
+  const random = createRandom(seedText);
+  const deck = [];
+  for (let card = 0; card < 52 + TRUMP_COUNT; card++) {
+    const isAce = card < 52 && card % 13 === 0;
+    if (!isAce) deck.push(card);         // 四张 A 直接放在目的地
+  }
+  for (let i = deck.length - 1; i > 0; i--) {   // Fisher-Yates 洗牌
+    const j = Math.floor(random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  let next = 0;
+  const columns = [];
+  for (let c = 0; c < COLUMN_COUNT; c++) {
+    columns.push(c === EMPTY_START_COLUMN ? [] : deck.slice(next, next += CARDS_PER_COLUMN));
+  }
+
+  seed = seedText;
+  gameId = Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  undoStack = [];
+  selected = null;
+  state = { columns, suitTops: [1, 1, 1, 1], trumpLow: -1, trumpHigh: TRUMP_COUNT,
+            parked: null, moves: 0, won: false };
+  autoReturn();
+}
+
+function startNewGame(seedText) {
+  const text = (typeof seedText === 'string' && seedText) ? seedText : Math.random().toString(36).slice(2, 8);
+  dealNewGame(text);
+  saveGame();
+  render();
+}
+
+/** 已回到目的地的牌数（不含开局就在的 4 张 A），总数 70 */
+function returnedCount(s) {
+  const suitCards = s.suitTops.reduce((sum, top) => sum + top - 1, 0);
+  return suitCards + (s.trumpLow + 1) + (TRUMP_COUNT - s.trumpHigh);
+}
+
+/* =====================================================================
+ * 存档与历史
+ * ===================================================================== */
+function saveGame() {
+  const record = { id: gameId, seed, moves: state.moves, returned: returnedCount(state),
+                   won: state.won ? 1 : 0, ts: Date.now() };
+  const index = history.findIndex(h => h.id === gameId);
+  if (index >= 0) history[index] = record; else history.unshift(record);
+  history = history.slice(0, 300);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gameId, seed, state, undoStack, history }));
+    storageWorks = true;
+  } catch (e) { storageWorks = false; }
+}
+
+/** 兼容旧版存档的字段名 */
+function migrateState(s) {
+  if (!s || s.columns) return s;
+  return { columns: s.cols, suitTops: s.found, trumpLow: s.tlo, trumpHigh: s.thi,
+           parked: s.slot, moves: s.moves, won: s.won };
+}
+
+function loadGame() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const savedState = migrateState(saved && (saved.state || saved.S));
+    if (!savedState) return;
+    state = savedState;
+    seed = saved.seed;
+    gameId = saved.gameId || saved.gid || Date.now() + '-x';
+    undoStack = (saved.undoStack || saved.undo || []).map(j => JSON.stringify(migrateState(JSON.parse(j))));
+    history = (saved.history || saved.hist || []).map((h, i) => ({
+      id: 'old' + i, ts: 0, ...h, returned: h.returned ?? h.ret }));
+  } catch (e) { /* 没有存档或存档损坏：开新局 */ }
+}
+
+const escapeHTML = text => String(text).replace(/[<>&"']/g, c => '&#' + c.charCodeAt(0) + ';');
+
+function showHistory() {
+  const rows = [...history].sort((a, b) => b.ts - a.ts).map(h => {
+    const isCurrent = h.id === gameId;
+    const status = h.won ? '✅ 通关' : isCurrent ? '▶ 当前' : h.moves ? '⏸ 未完成' : '· 未开始';
+    const time = h.ts ? new Date(h.ts).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+    const replay = isCurrent ? '' : `<button data-seed="${encodeURIComponent(h.seed)}">重玩</button>`;
+    return `<tr class="${isCurrent ? 'current' : ''}"><td>${status}</td><td>${time}</td><td>${escapeHTML(h.seed)}</td>` +
+           `<td>${h.returned == null ? '-' : h.returned + ' / 70'}</td><td>${h.moves} 步</td><td>${replay}</td></tr>`;
+  }).join('');
+  $('historyTable').innerHTML =
+    '<tr><th>状态</th><th>时间</th><th>种子</th><th>回归</th><th>步数</th><th></th></tr>' +
+    (rows || '<tr><td colspan="6">暂无记录</td></tr>');
+
+  $('storageWarning')?.remove();
+  if (!storageWorks) {
+    $('historyTable').insertAdjacentHTML('beforebegin',
+      '<p id="storageWarning" style="color:#fd8">⚠ 浏览器禁止了本地存储，刷新页面后历史和进度会丢失。</p>');
+  }
+  $('historyView').style.display = 'block';
+}
+
+/* =====================================================================
+ * 规则
+ * ===================================================================== */
+const isColumn = location => location.startsWith('col');
+const baseLocation = location => location.split('.')[0];          // "col3.2" → "col3"
+const columnIndex = location => +baseLocation(location).slice(3);
+const topCard = column => column[column.length - 1];
+
+/** 起点位置上将被移动的牌（多张牌时，按列里从下到上的顺序） */
+function cardsAt(source) {
+  if (source === 'park') return state.parked == null ? [] : [state.parked];
+  const column = state.columns[columnIndex(source)];
+  const start = source.split('.')[1];
+  return start == null ? column.slice(-1) : column.slice(+start);
+}
+
+/** 这张牌现在能不能回到目的地？暂存格有别的牌时，花色牌不能回去 */
+function canReturnToFoundation(card) {
+  if (!isTrump(card)) {
+    if (state.parked != null && state.parked !== card) return false;
+    return rankOf(card) === state.suitTops[suitOf(card)] + 1;
+  }
+  const n = rankOf(card);
+  return n === state.trumpLow + 1 || n === state.trumpHigh - 1;
+}
+
+/** 单张牌能否移到 dest */
+function canMoveOne(dest, card, source) {
+  if (dest === 'park') return state.parked == null && source !== 'park';
+  if (dest === 'foundation') return !isTrump(card) && canReturnToFoundation(card);
+  if (dest === 'trump') return isTrump(card) && canReturnToFoundation(card);
+  if (dest === source) return false;
+  const column = state.columns[columnIndex(dest)];
+  return column.length === 0 || areNeighbors(topCard(column), card);
+}
+
+/**
+ * 多张牌是“一张一张挪”的快捷方式，所以首尾相接、顺序会反过来：
+ *   'reversed'：最上面那张能接上目标（或目标是空列）→ 顺序反转，不需要额外空列
+ *   'kept'    ：想保持顺序，需要另有一个空列帮忙调换
+ *   null      ：不能移动
+ */
+function multiMoveOrder(dest, cards, keepOrder) {
+  const target = state.columns[columnIndex(dest)];
+  const otherEmptyColumn = state.columns.some((c, i) => c.length === 0 && i !== columnIndex(dest));
+  if (target.length === 0) return keepOrder && otherEmptyColumn ? 'kept' : 'reversed';
+  if (areNeighbors(topCard(target), cards[cards.length - 1])) return 'reversed';
+  if (areNeighbors(topCard(target), cards[0]) && otherEmptyColumn) return 'kept';
+  return null;
+}
+
+function canMove(dest, cards, source) {
+  dest = baseLocation(dest);
+  source = baseLocation(source);
+  if (cards.length === 1) return canMoveOne(dest, cards[0], source);
+  return isColumn(dest) && dest !== source && multiMoveOrder(dest, cards, false) !== null;
+}
+
+/** 执行移动（不检查合法性）。isAuto 为 true 时不计步数 */
+function applyMove(source, dest, isAuto, keepOrder) {
+  const cards = cardsAt(source);
+  const first = cards[0];
+
+  if (source === 'park') {
+    state.parked = null;
+  } else {
+    const column = state.columns[columnIndex(source)];
+    const start = source.split('.')[1];
+    column.splice(start == null ? column.length - 1 : +start);
+  }
+
+  if (dest === 'park') {
+    state.parked = first;
+  } else if (dest === 'foundation') {
+    state.suitTops[suitOf(first)]++;
+  } else if (dest === 'trump') {
+    if (rankOf(first) === state.trumpLow + 1) state.trumpLow = rankOf(first);
+    else state.trumpHigh = rankOf(first);
+  } else {
+    if (cards.length > 1 && multiMoveOrder(dest, cards, keepOrder) === 'reversed') cards.reverse();
+    state.columns[columnIndex(dest)].push(...cards);
+  }
+  if (!isAuto) state.moves++;
+}
+
+/** 自动回归：反复把能回到目的地的牌（暂存格和各列最上面一张）送回去 */
+function autoReturn() {
+  if (!$('autoToggle').checked) return;
+  const sources = ['park', ...state.columns.map((_, i) => 'col' + i)];
+  let moved = true;
+  while (moved) {
+    moved = false;
+    for (const source of sources) {
+      const card = cardsAt(source)[0];
+      if (card == null) continue;
+      const dest = isTrump(card) ? 'trump' : 'foundation';
+      if (canMoveOne(dest, card, source)) {
+        applyMove(source, dest, true);
+        moved = true;
+      }
+    }
+  }
+  const allSuitsDone = state.suitTops.every(top => top === 13);
+  if (!state.won && allSuitsDone && returnedCount(state) === 70) state.won = true;
+}
+
+/** 玩家的一次移动：成功返回 true */
+function moveCards(source, dest, keepOrder) {
+  dest = baseLocation(dest);
+  const cards = cardsAt(source);
+  if (!cards.length || !canMove(dest, cards, source)) return false;
+  undoStack.push(JSON.stringify(state));
+  applyMove(source, dest, false, keepOrder);
+  selected = null;
+  autoReturn();
+  saveGame();
+  render();
+  return true;
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  state = JSON.parse(undoStack.pop());
+  selected = null;
+  saveGame();
+  render();
+}
+
+/* =====================================================================
+ * 绘制
+ * ===================================================================== */
+function cardHTML(card, extraAttributes = '') {
+  const suit = suitOf(card);
+  const color = isTrump(card) ? 'trump' : (suit === 1 || suit === 2) ? 'red' : 'black';
+  const corner = isTrump(card) ? rankOf(card) : RANK_LABELS[rankOf(card)] + SUIT_SYMBOLS[suit];
+  return `<div class="card ${color}" data-id="${card}" ${extraAttributes}><span>${corner}</span><i>${SUIT_SYMBOLS[suit]}</i></div>`;
+}
+
+function render() {
+  // 上方：王牌目的地（两端）、暂存格、四个花色目的地
+  const suitBoxes = state.suitTops.map((top, suit) =>
+    `<div class="box">${SUIT_SYMBOLS[suit]}${cardHTML(suit * 13 + top - 1)}</div>`).join('');
+  const lowCard = state.trumpLow >= 0 ? cardHTML(FIRST_TRUMP + state.trumpLow) : '';
+  const highCard = state.trumpHigh < TRUMP_COUNT ? cardHTML(FIRST_TRUMP + state.trumpHigh) : '';
+  const parkedCard = state.parked != null ? cardHTML(state.parked, 'data-src="park"') : '';
+  $('topArea').innerHTML =
+    `<div class="area" data-dest="trump"><div class="box">0${lowCard}</div><div class="box">21${highCard}</div></div>
+     <div style="display:flex;gap:14px">
+       <div class="box" data-dest="park">暂存${parkedCard}</div>
+       <div class="area ${state.parked != null ? 'blocked' : ''}" data-dest="foundation">${suitBoxes}</div>
+     </div>`;
+
+  // 下方：11 列。列尾连续相邻的一段牌都可以拿起来（多张牌移动）
+  boardEl.innerHTML = state.columns.map((column, c) => {
+    let runStart = column.length - 1;
+    while (runStart > 0 && areNeighbors(column[runStart - 1], column[runStart])) runStart--;
+    const cardsHTML = column.map((card, k) => {
+      let source = '';
+      if (k >= runStart) source = k === column.length - 1 ? `data-src="col${c}"` : `data-src="col${c}.${k}"`;
+      return cardHTML(card, `${source} style="top:calc(var(--o)*${k})"`);
+    }).join('');
+    const height = `max(calc(var(--h)*var(--column-min-height)), calc(var(--h) + var(--o)*${Math.max(column.length - 1, 0)}))`;
+    return `<div class="column ${column.length ? '' : 'empty'}" data-dest="col${c}" style="height:${height}">${cardsHTML}</div>`;
+  }).join('');
+
+  $('undoBtn').disabled = !undoStack.length;
+  $('info').innerHTML = `种子 <b>${escapeHTML(seed)}</b> · 步数 ${state.moves}`;
+  $('winOverlay').style.display = state.won ? 'grid' : 'none';
+  $('winMessage').textContent = `用了 ${state.moves} 步`;
+  refreshHighlights();
+}
+
+/** 选中的牌高亮黄框，能去的位置高亮绿框 */
+function refreshHighlights() {
+  document.querySelectorAll('.target, .selected').forEach(el => el.classList.remove('target', 'selected'));
+  if (selected != null) {
+    const cards = cardsAt(selected);
+    cards.forEach(card => document.querySelector(`[data-id="${card}"]`)?.classList.add('selected'));
+    document.querySelectorAll('[data-dest]').forEach(el => {
+      const dest = el.dataset.dest;
+      if (!canMove(dest, cards, selected)) return;
+      const hasCards = isColumn(dest) && el.lastElementChild;
+      (hasCards ? el.lastElementChild : el).classList.add('target');   // 非空列高亮最上面的牌
+    });
+  }
+  highlightFriends(selected != null ? cardsAt(selected)[0] : null);
+}
+
+function highlightFriends(card) {
+  document.querySelectorAll('.friend').forEach(el => el.classList.remove('friend'));
+  if (card == null || !$('friendsToggle').checked) return;
+  document.querySelectorAll('[data-id]').forEach(el => {
+    if (areNeighbors(card, +el.dataset.id)) el.classList.add('friend');
+  });
+}
+
+/* =====================================================================
+ * 鼠标 / 触摸操作：按下后移动超过 6px 算拖拽，否则算点击
+ * ===================================================================== */
+const wantsKeepOrder = e => e.shiftKey || $('keepOrderToggle').checked;
+
+function beginPress(e, source) {
+  try { e.target.closest('[data-src]').releasePointerCapture(e.pointerId); } catch (err) { /* 没有捕获则忽略 */ }
+  drag = { source, startX: e.clientX, startY: e.clientY, active: false };
+}
+boardEl.addEventListener('pointerdown', e => {
+  const el = e.target.closest('[data-src]');
+  if (el && !e.button) beginPress(e, el.dataset.src);
+});
+$('topArea').addEventListener('pointerdown', e => {
+  if (e.target.closest('[data-src]') && !e.button) beginPress(e, 'park');
+});
+
+function startDragging(e) {
+  drag.active = true;
+  selected = drag.source;
+  refreshHighlights();
+  const cards = cardsAt(selected);
+  const rect = document.querySelector(`[data-id="${cards[0]}"]`).getBoundingClientRect();
+  drag.offsetX = drag.startX - rect.left;
+  drag.offsetY = drag.startY - rect.top;
+
+  // 跟随鼠标的“影子”：复制被拖的牌，原位置变淡
+  const ghost = drag.ghost = document.createElement('div');
+  ghost.style.cssText = 'position:fixed;left:0;top:0;width:var(--w);z-index:99;pointer-events:none;opacity:.92';
+  cards.forEach((card, i) => {
+    const original = document.querySelector(`[data-id="${card}"]`);
+    const copy = original.cloneNode(true);
+    copy.style.top = `calc(var(--o)*${i})`;
+    copy.classList.remove('selected');
+    ghost.appendChild(copy);
+    original.style.opacity = .3;
+  });
+  document.body.appendChild(ghost);
+}
+
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const moved = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+  if (!drag.active && moved > 6) startDragging(e);
+  if (drag.active) drag.ghost.style.transform = `translate(${e.clientX - drag.offsetX}px,${e.clientY - drag.offsetY}px)`;
+});
+
+addEventListener('pointerup', e => {
+  if (!drag) return;
+  const finished = drag;
+  drag = null;
+
+  if (finished.active) {                       // 拖拽结束：看松手处是哪个目的地
+    finished.ghost.remove();
+    const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-dest]');
+    selected = null;
+    if (!(target && moveCards(finished.source, target.dataset.dest, wantsKeepOrder(e)))) render();
+    return;
+  }
+  // 点击：已有选中的牌就尝试移到点击的列，否则选中/取消选中
+  if (selected != null && selected !== finished.source &&
+      moveCards(selected, finished.source, wantsKeepOrder(e))) return;
+  selected = selected === finished.source ? null : finished.source;
+  refreshHighlights();
+});
+
+addEventListener('pointercancel', () => {
+  if (!drag) return;
+  drag.ghost?.remove();
+  drag = null;
+  selected = null;
+  render();
+});
+
+// 点击空白处/空列/目的地：把选中的牌移过去，失败则取消选中
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-src], #toolbar, #historyView, #winOverlay') || selected == null) return;
+  const target = e.target.closest('[data-dest]');
+  if (!(target && moveCards(selected, target.dataset.dest, wantsKeepOrder(e)))) {
+    selected = null;
+    refreshHighlights();
+  }
+});
+
+// 双击：尝试把这张牌送回目的地
+document.addEventListener('dblclick', e => {
+  const el = e.target.closest('[data-src]');
+  if (el) moveCards(el.dataset.src, 'foundation') || moveCards(el.dataset.src, 'trump');
+});
+
+// 鼠标悬停时高亮“朋友”
+document.addEventListener('mouseover', e => {
+  if (drag) return;
+  const el = e.target.closest?.('[data-id]');
+  highlightFriends(el ? +el.dataset.id : selected != null ? cardsAt(selected)[0] : null);
+});
+
+/* =====================================================================
+ * 工具栏按钮
+ * ===================================================================== */
+/** 需要二次确认的按钮：第一次点击变成提示文字，3 秒内再点才执行 */
+function confirmButton(button, label, confirmLabel, action, needsConfirm = () => true) {
+  let timer = 0;
+  button.onclick = () => {
+    if (needsConfirm() && !timer) {
+      button.textContent = confirmLabel;
+      timer = setTimeout(() => { timer = 0; button.textContent = label; }, 3000);
+      return;
+    }
+    clearTimeout(timer);
+    timer = 0;
+    button.textContent = label;
+    action();
+  };
+}
+
+$('undoBtn').onclick = undo;
+$('historyBtn').onclick = showHistory;
+$('closeHistoryBtn').onclick = () => { $('historyView').style.display = 'none'; };
+$('newGameBtn').onclick = () => { const text = $('seedInput').value.trim(); $('seedInput').value = ''; startNewGame(text); };
+confirmButton($('restartBtn'), '重开本局', '再点一次确认',
+  () => { dealNewGame(seed); saveGame(); render(); }, () => state.moves > 0);
+confirmButton($('clearHistoryBtn'), '清空', '再点确认',
+  () => { history = history.filter(h => h.id === gameId); saveGame(); showHistory(); });
+$('historyTable').onclick = e => {
+  const button = e.target.closest('[data-seed]');
+  if (!button) return;
+  $('historyView').style.display = 'none';
+  startNewGame(decodeURIComponent(button.dataset.seed));
+};
+$('friendsToggle').onchange = refreshHighlights;
+$('autoToggle').onchange = () => {           // 刚打开自动回归时，立刻补做一次（可撤销）
+  if (state.won) return;
+  undoStack.push(JSON.stringify(state));
+  autoReturn();
+  saveGame();
+  render();
+};
+addEventListener('keydown', e => {
+  const isUndoKey = (e.key === 'z' && (e.ctrlKey || e.metaKey)) ||
+                    (e.key === 'Backspace' && document.activeElement.tagName !== 'INPUT');
+  if (isUndoKey) undo();
+});
+
+/* ---------- 启动：有存档就继续，没有就开新局 ---------- */
+loadGame();
+if (state) render(); else startNewGame();
+</script>
+</body>
+</html>
