@@ -55,6 +55,8 @@
     display: grid; grid-template-columns: repeat(11, var(--w)); justify-content: center;
     gap: calc(var(--w) * .1); margin-top: calc(var(--w) * .15);
   }
+  #sideBoard, #boardTop, #boardBottom { display: none; }   /* 竖屏布局容器，横屏时隐藏 */
+  .topGroup { display: flex; gap: 14px; }
   .column { position: relative; border-radius: 6px; }
   .column.empty { border: 2px dashed #fff4; box-sizing: border-box; }
 
@@ -111,6 +113,32 @@
     .area { padding: 3px; }
     #board { margin-top: 6px; margin-bottom: 12px; }
   }
+
+  /* ---------- 竖屏：左右结构（左边窄：回收区+暂存+一列，右边宽：上下各 5 列） ---------- */
+  @media (orientation: portrait) {
+    :root {
+      --w: clamp(40px, calc((100vw - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 6.8), 140px);
+    }
+    #layout {
+      display: grid; grid-template-columns: max-content 1fr;
+      justify-content: center; align-items: start; gap: 8px; padding: 4px;
+    }
+    #topArea {
+      grid-column: 1; grid-row: 1; flex-direction: column;
+      justify-content: flex-start; align-items: center; padding: 0;
+    }
+    .area, .topGroup { flex-direction: column; align-items: center; }
+    .topGroup { gap: 8px; }
+    #sideBoard { display: block; grid-column: 1; grid-row: 2; }
+    #rightPane { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+    #board { display: none; }
+    #boardTop, #boardBottom {
+      display: grid; grid-template-columns: repeat(5, var(--w)); justify-content: start;
+      gap: calc(var(--w) * .1);
+    }
+    /* 回收区叠放：同组盒子叠成一摞、只露上沿，省出纵向空间给操作列 */
+    #topArea .area .box + .box { margin-top: calc(var(--h) * -.7); }
+  }
 </style>
 </head>
 <body>
@@ -128,8 +156,15 @@
   <span style="opacity:.7">多张牌：拖/点连续段；放空列时按住 Shift 或勾选“保序”可保持顺序（需另有空列）</span>
 </div>
 
-<div id="topArea"></div>
-<div id="board"></div>
+<div id="layout">
+  <div id="topArea"></div>
+  <div id="sideBoard"></div>
+  <div id="rightPane">
+    <div id="board"></div>
+    <div id="boardTop"></div>
+    <div id="boardBottom"></div>
+  </div>
+</div>
 
 <div id="historyView">
   <h2><span>历史记录</span><button id="clearHistoryBtn">清空</button><button id="closeHistoryBtn">✕ 关闭</button></h2>
@@ -185,6 +220,9 @@ let storageWorks = true;
 
 const $ = id => document.getElementById(id);
 const boardEl = $('board');
+const layoutEl = $('layout');
+/** 是否竖屏布局（与 CSS 的 orientation: portrait 用同一判断） */
+const isPortraitLayout = () => matchMedia('(orientation: portrait)').matches;
 
 /* ---------- 种子随机数 ---------- */
 function createRandom(seedText) {
@@ -443,6 +481,19 @@ function cardHTML(card, extraAttributes = '') {
   return `<div class="card ${color}" data-id="${card}" ${extraAttributes}><span>${corner}</span><i>${SUIT_SYMBOLS[suit]}</i></div>`;
 }
 
+/** 单列的 HTML：列尾连续相邻的一段牌都可以拿起来（多张牌移动） */
+function columnHTML(column, c) {
+  let runStart = column.length - 1;
+  while (runStart > 0 && areNeighbors(column[runStart - 1], column[runStart])) runStart--;
+  const cardsHTML = column.map((card, k) => {
+    let source = '';
+    if (k >= runStart) source = k === column.length - 1 ? `data-src="col${c}"` : `data-src="col${c}.${k}"`;
+    return cardHTML(card, `${source} style="top:calc(var(--o)*${k})"`);
+  }).join('');
+  const height = `max(calc(var(--h)*var(--column-min-height)), calc(var(--h) + var(--o)*${Math.max(column.length - 1, 0)}))`;
+  return `<div class="column ${column.length ? '' : 'empty'}" data-dest="col${c}" style="height:${height}">${cardsHTML}</div>`;
+}
+
 function render() {
   // 上方：王牌目的地（两端）、暂存格、四个花色目的地
   const suitBoxes = state.suitTops.map((top, suit) =>
@@ -452,23 +503,25 @@ function render() {
   const parkedCard = state.parked != null ? cardHTML(state.parked, 'data-src="park"') : '';
   $('topArea').innerHTML =
     `<div class="area" data-dest="trump"><div class="box">0${lowCard}</div><div class="box">21${highCard}</div></div>
-     <div style="display:flex;gap:14px">
+     <div class="topGroup">
        <div class="box" data-dest="park">暂存${parkedCard}</div>
        <div class="area ${state.parked != null ? 'blocked' : ''}" data-dest="foundation">${suitBoxes}</div>
      </div>`;
 
-  // 下方：11 列。列尾连续相邻的一段牌都可以拿起来（多张牌移动）
-  boardEl.innerHTML = state.columns.map((column, c) => {
-    let runStart = column.length - 1;
-    while (runStart > 0 && areNeighbors(column[runStart - 1], column[runStart])) runStart--;
-    const cardsHTML = column.map((card, k) => {
-      let source = '';
-      if (k >= runStart) source = k === column.length - 1 ? `data-src="col${c}"` : `data-src="col${c}.${k}"`;
-      return cardHTML(card, `${source} style="top:calc(var(--o)*${k})"`);
-    }).join('');
-    const height = `max(calc(var(--h)*var(--column-min-height)), calc(var(--h) + var(--o)*${Math.max(column.length - 1, 0)}))`;
-    return `<div class="column ${column.length ? '' : 'empty'}" data-dest="col${c}" style="height:${height}">${cardsHTML}</div>`;
-  }).join('');
+  // 11 列。列尾连续相邻的一段牌都可以拿起来（多张牌移动）
+  // 横屏：11 列一排；竖屏：中间列放左边，其余上下两组各 5 列放右边
+  const colsHTML = state.columns.map((column, c) => columnHTML(column, c));
+  if (isPortraitLayout()) {
+    $('boardTop').innerHTML = colsHTML.slice(0, EMPTY_START_COLUMN).join('');
+    $('sideBoard').innerHTML = colsHTML[EMPTY_START_COLUMN];
+    $('boardBottom').innerHTML = colsHTML.slice(EMPTY_START_COLUMN + 1).join('');
+    boardEl.innerHTML = '';
+  } else {
+    boardEl.innerHTML = colsHTML.join('');
+    $('boardTop').innerHTML = '';
+    $('boardBottom').innerHTML = '';
+    $('sideBoard').innerHTML = '';
+  }
 
   $('undoBtn').disabled = !undoStack.length;
   $('info').innerHTML = `种子 <b>${escapeHTML(seed)}</b> · 步数 ${state.moves}`;
@@ -526,13 +579,17 @@ function beginPress(e, source) {
   try { e.target.closest('[data-src]').releasePointerCapture(e.pointerId); } catch (err) { /* 没有捕获则忽略 */ }
   drag = { source, startX: e.clientX, startY: e.clientY, active: false };
 }
-boardEl.addEventListener('pointerdown', e => {
+layoutEl.addEventListener('pointerdown', e => {
   const el = e.target.closest('[data-src]');
   if (el && !e.button) beginPress(e, el.dataset.src);
 });
-$('topArea').addEventListener('pointerdown', e => {
-  if (e.target.closest('[data-src]') && !e.button) beginPress(e, 'park');
-});
+// 横竖屏切换时重渲染，把各列搬到对应的容器里
+{
+  const portraitQuery = matchMedia('(orientation: portrait)');
+  const rerender = () => { if (state) render(); };
+  if (portraitQuery.addEventListener) portraitQuery.addEventListener('change', rerender);
+  else portraitQuery.addListener(rerender);
+}
 
 function startDragging(e) {
   drag.active = true;
